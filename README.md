@@ -86,8 +86,10 @@ make build  # go build → ./dnswatch
 ```bash
 make run                      # attaches to enp2s0 (default)
 make run IFACE=eth0           # different interface
-sudo ./dnswatch -iface enp2s0 -bpf bpf/dns_capture.o
+sudo ./dnswatch -iface enp2s0
 ```
+
+The compiled BPF object is embedded into the binary at build time. Copy the binary anywhere and run it — no `.o` file needed alongside it.
 
 Must run as root. Output is one JSON object per DNS packet on stdout:
 

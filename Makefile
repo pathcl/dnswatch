@@ -1,5 +1,8 @@
 BPF_SRC  := bpf/dns_capture.c
-BPF_OBJ  := bpf/dns_capture.o
+# Output alongside the capture package so //go:embed can pick it up.
+# go:embed does not allow '..' in paths, so the .o must live inside
+# the package directory that embeds it.
+BPF_OBJ  := internal/capture/dns_capture.o
 BINARY   := dnswatch
 IFACE    ?= enp2s0
 
@@ -20,12 +23,13 @@ $(BPF_OBJ): $(BPF_SRC)
 		-c $< -o $@
 
 # Build the Go userspace binary.
+# The compiled BPF object is embedded at build time; the binary is self-contained.
 build:
 	go build -o $(BINARY) ./cmd/dnswatch
 
 # Run with defaults. Requires root.
 run: all
-	sudo ./$(BINARY) -iface $(IFACE) -bpf $(BPF_OBJ)
+	sudo ./$(BINARY) -iface $(IFACE)
 
 clean:
 	rm -f $(BPF_OBJ) $(BINARY)

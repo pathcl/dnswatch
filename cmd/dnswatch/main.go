@@ -12,8 +12,7 @@ import (
 )
 
 func main() {
-	iface  := flag.String("iface", "enp2s0", "network interface to attach XDP to")
-	bpfObj := flag.String("bpf", "bpf/dns_capture.o", "path to compiled BPF object file")
+	iface := flag.String("iface", "enp2s0", "network interface to attach XDP to")
 	flag.Parse()
 
 	if os.Getuid() != 0 {
@@ -33,7 +32,7 @@ func main() {
 		}
 	}()
 
-	if err := capture.Run(*bpfObj, *iface, packets); err != nil {
+	if err := capture.Run(*iface, packets); err != nil {
 		log.Fatalf("capture: %v", err)
 	}
 }
