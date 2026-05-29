@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -99,6 +100,10 @@ func Run(iface string, out chan<- *parser.DNSPacket) error {
 			return fmt.Errorf("read ring buffer: %w", err)
 		}
 
+		// Stamp immediately after leaving the ring buffer, before Parse()
+		// does any allocation work, to minimise jitter in the timestamp.
+		ts := time.Now()
+
 		pkt, err := parser.Parse(record.RawSample)
 		if err != nil {
 			// Malformed DNS packets are common (truncated, non-standard).
@@ -107,6 +112,7 @@ func Run(iface string, out chan<- *parser.DNSPacket) error {
 			continue
 		}
 
+		pkt.Timestamp = ts
 		out <- pkt
 	}
 }

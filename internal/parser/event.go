@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/miekg/dns"
 )
@@ -24,6 +25,7 @@ type DNSEvent struct {
 
 // DNSPacket is the parsed, userspace-friendly representation of a DNS event.
 type DNSPacket struct {
+	Timestamp  time.Time // when the event was read off the ring buffer
 	SrcIP      net.IP
 	DstIP      net.IP
 	SrcPort    uint16
