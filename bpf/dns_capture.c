@@ -79,9 +79,10 @@ int dns_capture(struct xdp_md *ctx)
     if (dns_start >= data_end)
         return XDP_PASS;
 
-    __u16 dns_len = (__u16)(data_end - dns_start);
-    if (dns_len > DNS_MAX_PAYLOAD)
-        dns_len = DNS_MAX_PAYLOAD;
+    // Use __u32 for the length computation. The BPF verifier tracks __u16
+    // as having range [0, 65535] and does not always narrow that range after
+    // a conditional cap, causing a spurious out-of-bounds error on the copy.
+    __u32 avail = (long)data_end - (long)dns_start;
 
     // Reserve space in the ring buffer. BPF_RB_NO_WAKEUP defers the
     // consumer notification — we submit immediately after, which triggers it.
@@ -94,12 +95,21 @@ int dns_capture(struct xdp_md *ctx)
     e->src_port    = sport;
     e->dst_port    = dport;
     e->is_response = (sport == 53) ? 1 : 0;
-    e->payload_len = dns_len;
+    e->payload_len = avail < DNS_MAX_PAYLOAD ? (__u16)avail : DNS_MAX_PAYLOAD;
     e->pad         = 0;
 
-    // bpf_probe_read_kernel copies safely with bounds checking.
-    // dns_len is capped at DNS_MAX_PAYLOAD above so this never overflows e->payload.
-    bpf_probe_read_kernel(e->payload, dns_len, dns_start);
+    // Two explicit branches so each bpf_probe_read_kernel call has a
+    // compile-time-provable size that the verifier can check against
+    // sizeof(e->payload) == DNS_MAX_PAYLOAD == 512:
+    //
+    //   Branch 1 (avail >= 512): copy exactly 512 bytes — a constant.
+    //   Branch 2 (avail <  512): avail <= 511, and (avail & 511) == avail,
+    //            so the masked value is in [0, 511] < 512. ✓
+    if (avail >= DNS_MAX_PAYLOAD) {
+        bpf_probe_read_kernel(e->payload, DNS_MAX_PAYLOAD, dns_start);
+    } else {
+        bpf_probe_read_kernel(e->payload, avail & (DNS_MAX_PAYLOAD - 1), dns_start);
+    }
 
     bpf_ringbuf_submit(e, 0);
 
