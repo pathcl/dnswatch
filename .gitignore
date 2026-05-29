@@ -1,5 +1,7 @@
 CLAUDE.md
-# Ignore compiled binaries at the repo root, not the cmd/ directory.
+# Compiled binaries at the repo root, not the cmd/ directory.
 /dnswatch
 /dnswatch-linux-amd64
 /dnswatch-linux-amd64.sha256
+# BPF bytecode — build artifact produced by clang, embedded into the binary.
+internal/capture/dns_capture.o
