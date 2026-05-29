@@ -48,12 +48,18 @@ func Parse(raw []byte) (*DNSPacket, error) {
 	}
 
 	// Decode fixed-size fields manually to avoid unsafe.Pointer casts.
-	// All multi-byte fields from the kernel are in network byte order (big-endian).
+	//
+	// src_ip / dst_ip: copied from ip->saddr/daddr which the kernel stores in
+	// network byte order (big-endian). net.IP expects the same, so no conversion.
+	//
+	// src_port / dst_port / payload_len: the XDP program stores these in host
+	// byte order (little-endian on x86) — ports after bpf_ntohs(), payload_len
+	// as a native C integer. Use LittleEndian to decode them.
 	srcIP := net.IP(raw[0:4])
 	dstIP := net.IP(raw[4:8])
-	srcPort := binary.BigEndian.Uint16(raw[8:10])
-	dstPort := binary.BigEndian.Uint16(raw[10:12])
-	payloadLen := binary.BigEndian.Uint16(raw[12:14])
+	srcPort := binary.LittleEndian.Uint16(raw[8:10])
+	dstPort := binary.LittleEndian.Uint16(raw[10:12])
+	payloadLen := binary.LittleEndian.Uint16(raw[12:14])
 	isResponse := raw[14] == 1
 	// raw[15] is pad — skip
 
