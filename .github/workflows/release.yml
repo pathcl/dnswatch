@@ -30,18 +30,17 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             clang \
             llvm \
-            libbpf-dev \
-            linux-headers-generic
+            libbpf-dev
 
       - name: Compile BPF program
         run: |
-          # Point clang at the generic kernel headers installed above.
-          # The BPF target does not need kernel headers that match the
-          # runner's kernel — libbpf-dev provides the BPF-specific headers.
-          KERN_HEADERS=$(ls -d /usr/src/linux-headers-*-generic 2>/dev/null | head -1)
+          # Use UAPI headers from linux-libc-dev (/usr/include/linux/) and
+          # BPF helpers from libbpf-dev (/usr/include/bpf/).
+          # Do NOT include kernel source headers (/usr/src/linux-headers-*/):
+          # those are for kernel modules and pull in asm/rwonce.h and other
+          # arch-specific headers that don't exist under -target bpf.
           clang -O2 -g -Wall -Wextra -target bpf \
             -I/usr/include/x86_64-linux-gnu \
-            ${KERN_HEADERS:+-I${KERN_HEADERS}/include} \
             -c bpf/dns_capture.c \
             -o internal/capture/dns_capture.o
 
